@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartSpend - Expense Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fbc2eb, #a1c4fd);
+            background-size: 400% 400%;
+            animation: gradientAnimation 10s infinite;
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        header {
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            color: #ffce56;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h2, h3 {
+            color: #ffce56;
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+
+        form label {
+            margin: 0.5rem 0 0.2rem;
+        }
+
+        form input, form select, form button {
+            padding: 0.8rem;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            border: none;
+            border-radius: 8px;
+        }
+
+        form input, form select {
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        form button {
+            background: linear-gradient(90deg, #ff6f61, #d67d3e);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        form button:hover {
+            background: linear-gradient(90deg, #d67d3e, #ff6f61);
+        }
+
+        .summary {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .summary ul {
+            list-style: none;
+            padding: 0;
+            margin: 0 auto;
+            max-width: 80%;
+        }
+
+        .summary ul li {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0.5rem 0;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .totals {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            color: #ffce56;
+        }
+
+        .chart-container {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SmartSpend</h1>
+</header>
+
+<main>
+    <h2>Expense Tracking</h2>
+    <form id="expenseForm">
+        <label for="expenseName">Expense Name:</label>
+        <input type="text" id="expenseName" name="expenseName" placeholder="E.g., Grocery, Rent" required>
+        
+        <label for="amount">Amount ($):</label>
+        <input type="number" id="amount" name="amount" placeholder="E.g., 50" required>
+        
+        <label for="category">Category:</label>
+        <select id="category" name="category" required>
+            <option value="Food">Food</option>
+            <option value="Rent">Rent</option>
+            <option value="Transport">Transport</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Other">Other</option>
+        </select>
+        
+        <button type="submit">Add Expense</button>
+    </form>
+
+    <div class="summary">
+        <h3>Expense Summary</h3>
+        <ul id="expenseList">
+            <!-- Dynamically added expenses will appear here -->
+        </ul>
+        <p class="totals">Total Expenses: $<span id="totalAmount">0</span></p>
+    </div>
+
+    <div class="chart-container">
+        <h3>Expense Breakdown</h3>
+        <canvas id="expenseChart"></canvas>
+    </div>
+</main>
+
+<footer>
+    &copy; 2024 SmartSpend. All rights reserved.
+</footer>
+
+<script>
+    const expenseForm = document.getElementById('expenseForm');
+    const expenseList = document.getElementById('expenseList');
+    const totalAmountElement = document.getElementById('totalAmount');
+    const expenseChart = document.getElementById('expenseChart');
+
+    let totalAmount = 0;
+    const categoryTotals = {
+        Food: 0,
+        Rent: 0,
+        Transport: 0,
+        Utilities: 0,
+        Other: 0,
+    };
+
+    const chart = new Chart(expenseChart, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(categoryTotals),
+            datasets: [{
+                data: Object.values(categoryTotals),
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff'],
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    enabled: true,
+                }
+            }
+        }
+    });
+
+    expenseForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const expenseName = document.getElementById('expenseName').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const category = document.getElementById('category').value;
+
+        totalAmount += amount;
+        totalAmountElement.textContent = totalAmount.toFixed(2);
+
+        categoryTotals[category] += amount;
+
+        chart.data.datasets[0].data = Object.values(categoryTotals);
+        chart.update();
+
+        const listItem = document.createElement('li');
+        listItem.textContent = `${expenseName} - $${amount.toFixed(2)} [${category}]`;
+        expenseList.appendChild(listItem);
+
+        expenseForm.reset();
+    });
+</script>
+
+</body>
+</html>
